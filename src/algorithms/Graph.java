@@ -88,6 +88,58 @@ public class Graph extends HashMap<Point, ArrayList<Point>>{
 
 		return res;
 	}
+	
+	public ArrayList<Point> findSemidisjointCycle2(){
+		ArrayList<Point> res = new ArrayList<>();
+		
+		if(!possibleToHaveSemiDisjointCycle()){
+			return res;
+		}
+		if(eval.isValide(new ArrayList<>(keySet()), res)){
+			return res;
+		}
+		
+		Stack<LinkedList<Point>> pointsToVisit = new Stack<>();
+		LinkedList<Point> currentTrace = new LinkedList<Point>();
+		
+		Point startPoint = keySet().iterator().next(), parent = null;
+		currentTrace.add(startPoint);
+		LinkedList<Point> children = getChildren(startPoint, parent);
+		pointsToVisit.push(children);
+		
+		outer: while(! pointsToVisit.isEmpty()){
+			children = pointsToVisit.pop();
+			if(children.isEmpty()){
+				if(currentTrace.size() > 1){
+					currentTrace.removeLast();
+				}
+				continue;
+			}
+			parent = currentTrace.getLast();
+			startPoint = children.removeFirst();			
+			pointsToVisit.push(children);
+			
+			children = getChildren(startPoint, parent);
+			if(! children.isEmpty()){
+				currentTrace.addLast(startPoint);
+				for(Point child : children){
+					if(currentTrace.contains(child)){
+						res = new ArrayList<Point>(currentTrace.subList(currentTrace.indexOf(child), currentTrace.size()));
+						break outer;
+					}
+					pointsToVisit.push(children);
+				}
+			}
+		}
+		
+		return res;
+	}
+	
+	private LinkedList<Point> getChildren(Point point, Point parent){
+		LinkedList<Point> children = new LinkedList<>(get(point));
+		children.remove(parent);
+		return children;
+	}
 
 
 	public int degre(Point p){

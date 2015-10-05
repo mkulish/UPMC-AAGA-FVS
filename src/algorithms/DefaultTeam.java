@@ -21,11 +21,10 @@ public class DefaultTeam {
 		g.cleanup();
 
 		System.out.println("debut while");
-		int count = 0;
 		while(!g.keySet().isEmpty()){
 			
 			System.out.println("find cycle");
-			ArrayList<Point> C=g.findSemidisjointCycle();
+			ArrayList<Point> C=g.findSemidisjointCycle2();
 			ArrayList<Point> V=new ArrayList<>(g.keySet());
 			
 			if(!C.isEmpty()){
@@ -53,10 +52,6 @@ public class DefaultTeam {
 			}
 			System.out.println("cleanup");
 			g.cleanup();
-			
-			if(count++ == 7){
-				break;
-			}
 		}
 		
 		System.out.println("stack");
