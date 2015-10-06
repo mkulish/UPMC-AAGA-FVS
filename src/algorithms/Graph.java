@@ -91,46 +91,86 @@ public class Graph extends HashMap<Point, ArrayList<Point>>{
 	
 	public ArrayList<Point> findSemidisjointCycle2(){
 		ArrayList<Point> res = new ArrayList<>();
-		
+
+        //check if there are no cycles at all
 		if(!possibleToHaveSemiDisjointCycle()){
 			return res;
 		}
 		if(eval.isValide(new ArrayList<>(keySet()), res)){
 			return res;
 		}
-		
-		Stack<LinkedList<Point>> pointsToVisit = new Stack<>();
-		LinkedList<Point> currentTrace = new LinkedList<Point>();
-		
-		Point startPoint = keySet().iterator().next(), parent = null;
-		currentTrace.add(startPoint);
-		LinkedList<Point> children = getChildren(startPoint, parent);
-		pointsToVisit.push(children);
-		
-		outer: while(! pointsToVisit.isEmpty()){
-			children = pointsToVisit.pop();
-			if(children.isEmpty()){
-				if(currentTrace.size() > 1){
-					currentTrace.removeLast();
-				}
-				continue;
-			}
-			parent = currentTrace.getLast();
-			startPoint = children.removeFirst();			
-			pointsToVisit.push(children);
-			
-			children = getChildren(startPoint, parent);
-			if(! children.isEmpty()){
-				currentTrace.addLast(startPoint);
-				for(Point child : children){
-					if(currentTrace.contains(child)){
-						res = new ArrayList<Point>(currentTrace.subList(currentTrace.indexOf(child), currentTrace.size()));
-						break outer;
-					}
-					pointsToVisit.push(children);
-				}
-			}
-		}
+
+        List<Point> validPoints = new LinkedList<>();
+        for(Point p: keySet()){
+            if(degre(p) == 2){
+                validPoints.add(p);
+            }
+        }
+
+        //startPoint is the root of the tree we will explore
+        for(Point startPoint : validPoints) {
+            Point parent = null;
+            //stack with the lists of points to visit at each level
+            Stack<LinkedList<Point>> pointsToVisit = new Stack<>();
+            //current trace to find a cycle
+            LinkedList<Point> currentTrace = new LinkedList<Point>();
+            //the root will always stay in the trace till the end
+            currentTrace.add(startPoint);
+            //pushing to stack all the children
+            LinkedList<Point> children = getChildren(startPoint, parent);
+            pointsToVisit.push(children);
+
+            //while we still have points to visit
+            outer:
+            while (!pointsToVisit.isEmpty()) {
+                //get the list of current level
+                children = pointsToVisit.pop();
+
+                //if no points left on this level - go back to the upper level
+                if (children.isEmpty()) {
+                    if (currentTrace.size() > 1) {
+                        //removing the last parent point from the trace, if it is nit the root
+                        currentTrace.removeLast();
+                    }
+                    continue;
+                }
+                //reinitialise the parent's parent and the current parent
+                parent = currentTrace.getLast();
+                startPoint = children.removeFirst();
+
+                //preventing the 2 exception points in the cycle
+                int exceptionsCount = countException(currentTrace);
+                if (exceptionsCount >= 2 || (exceptionsCount == 1 && degre(startPoint) > 2)) {
+                    continue;
+                }
+
+                //pushing back the list of points of the current level
+                //without the point we have taken to explore
+                pointsToVisit.push(children);
+
+                //exploring children
+                children = getChildren(startPoint, parent);
+                if (!children.isEmpty()) {
+                    //checking all the children if they are making the cycle
+                    for (Point child : children) {
+                        if (currentTrace.contains(child)) {
+                            List<Point> foundCycle = currentTrace.subList(currentTrace.indexOf(child), currentTrace.size());
+                            if (countException(foundCycle) < 2) {
+                                res = new ArrayList<Point>();
+                                break outer;
+                            }
+                        }
+                    }
+                    //no cycle found, going down to the next level
+                    //last point become a parent
+                    currentTrace.addLast(startPoint);
+                    //pushing the next level of points to visit
+                    pointsToVisit.push(children);
+                }
+            }
+            //remove the root
+            currentTrace.removeLast();
+        }
 		
 		return res;
 	}
