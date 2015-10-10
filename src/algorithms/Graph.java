@@ -9,9 +9,20 @@ import java.util.List;
 import java.util.Set;
 import java.util.Stack;
 
+/**
+ * Classe representant un graphe
+ * herite de HashMap pour que a partir d'un point
+ * on obtien ces voisins
+ */
 public class Graph extends HashMap<Point, ArrayList<Point>>{
 
 	Evaluation eval;
+	
+	/**
+	 * Constructeur
+	 * @param points Liste de points du graphe
+	 * @param eval Evaluateur pour definire les relations de voisinnage des points
+	 */
 	public Graph(ArrayList<Point> points,Evaluation eval) {
 		this.eval=eval;
 		for (Point point : points) {
@@ -19,6 +30,11 @@ public class Graph extends HashMap<Point, ArrayList<Point>>{
 		}
 	}
 
+	/**
+	 * Supprime un point du graphe
+	 * @param point Point du graphe à supprimer
+	 * @return true si le point a ete supprime, false sinon
+	 */
 	public boolean delect(Point point){
 		for(Point p:get(point)){
 			get(p).remove(point);
@@ -27,165 +43,70 @@ public class Graph extends HashMap<Point, ArrayList<Point>>{
 		return remove(point)!=null;
 	}
 
+	/**
+	 * Cherche un cycle semidisjoint
+	 * @return Liste de point constituant un cycle semidisjoint dans le graphe, null si il y en a pas
+	 */
 	public ArrayList<Point> findSemidisjointCycle(){
-		List<Point> visited=new ArrayList<>();
-		Stack<Point> toVisite=new Stack<>();
-		toVisite.addAll(keySet());
-		ArrayList<Point> res=new ArrayList<>();
 
-		
-		if(!possibleToHaveSemiDisjointCycle()){
-			return res;
-		}
-		if(eval.isValide(new ArrayList<>(keySet()), res)){
-			return res;
-		}
-		
+		List<Point> visited=new ArrayList<>(); //liste de point visité
+		HashMap<Point, Point> fatherMap=new HashMap<>();
+		Stack<Point> toVisite=new Stack<>(); //liste de point à visité
+		toVisite.addAll(keySet()); //toute les clefscar graph possible non connexe
+		ArrayList<Point> res=null;
+
 		while(!toVisite.isEmpty()){
-			Point p=toVisite.pop();
-			ArrayList<Point> neighbor=get(p);
+			Point inVisite=toVisite.pop();
 
-			//compte le nombre de voisins visite
-			int count=0;
-			for(Point n:neighbor){
-				if(visited.contains(n))
-					count++;
-			}
-
-			//tout les voisins visites
-			boolean isSecond=false;
-			if(count==neighbor.size()){
-				isSecond=true;
-			}
-
-			//si deuxieme  pop de p
-			if(isSecond){
-				ArrayList<Point> childs=new ArrayList<>();
-				for(Point n:neighbor){
-					int myIndex=visited.indexOf(p);
-					if(visited.indexOf(n)>myIndex)
-						childs.add(n);
-				}
-				visited.removeAll(childs);
-			}else{
-				//si premier pop de p
-				if(visited.contains(p)){
-					res=new ArrayList<>(visited.subList(visited.indexOf(p), visited.size()));
-					if(countException(res)<2)
-						return res;
-					else
-						res.clear();
-				}else{
-					visited.add(p);
-					toVisite.push(p);
-					for(Point n:neighbor){
-						if(!visited.contains(n))
-							toVisite.push(n);
+			if(!visited.contains(inVisite)){
+				visited.add(inVisite);
+				
+				ArrayList<Point> childrens=getChildren(inVisite, fatherMap.get(inVisite));
+				for(Point n:childrens){
+					if(visited.contains(n)){
+						res=backUp(fatherMap, inVisite, n);
+						if(countException(res)<2)
+							return res;
+						else
+							res=null;
+					}else{
+						fatherMap.put(n, inVisite);
+						toVisite.push(n);
 					}
 				}
 			}
-		}	
+		}
 
 		return res;
 	}
-	
-	public ArrayList<Point> findSemidisjointCycle2(){
-		ArrayList<Point> res = new ArrayList<>();
 
-        //check if there are no cycles at all
-		if(!possibleToHaveSemiDisjointCycle()){
-			return res;
-		}
-		if(eval.isValide(new ArrayList<>(keySet()), res)){
-			return res;
-		}
-
-        List<Point> validPoints = new LinkedList<>();
-        for(Point p: keySet()){
-            if(degre(p) == 2){
-                validPoints.add(p);
-            }
-        }
-
-        //startPoint is the root of the tree we will explore
-        for(Point startPoint : validPoints) {
-            Point parent = null;
-            //stack with the lists of points to visit at each level
-            Stack<LinkedList<Point>> pointsToVisit = new Stack<>();
-            //current trace to find a cycle
-            LinkedList<Point> currentTrace = new LinkedList<Point>();
-            //the root will always stay in the trace till the end
-            currentTrace.add(startPoint);
-            //pushing to stack all the children
-            LinkedList<Point> children = getChildren(startPoint, parent);
-            pointsToVisit.push(children);
-
-            //while we still have points to visit
-            outer:
-            while (!pointsToVisit.isEmpty()) {
-                //get the list of current level
-                children = pointsToVisit.pop();
-
-                //if no points left on this level - go back to the upper level
-                if (children.isEmpty()) {
-                    if (currentTrace.size() > 1) {
-                        //removing the last parent point from the trace, if it is nit the root
-                        currentTrace.removeLast();
-                    }
-                    continue;
-                }
-                //reinitialise the parent's parent and the current parent
-                parent = currentTrace.getLast();
-                startPoint = children.removeFirst();
-
-                //preventing the 2 exception points in the cycle
-                int exceptionsCount = countException(currentTrace);
-                if (exceptionsCount >= 2 || (exceptionsCount == 1 && degre(startPoint) > 2)) {
-                    continue;
-                }
-
-                //pushing back the list of points of the current level
-                //without the point we have taken to explore
-                pointsToVisit.push(children);
-
-                //exploring children
-                children = getChildren(startPoint, parent);
-                if (!children.isEmpty()) {
-                    //checking all the children if they are making the cycle
-                    for (Point child : children) {
-                        if (currentTrace.contains(child)) {
-                            List<Point> foundCycle = currentTrace.subList(currentTrace.indexOf(child), currentTrace.size());
-                            if (countException(foundCycle) < 2) {
-                                res = new ArrayList<Point>();
-                                break outer;
-                            }
-                        }
-                    }
-                    //no cycle found, going down to the next level
-                    //last point become a parent
-                    currentTrace.addLast(startPoint);
-                    //pushing the next level of points to visit
-                    pointsToVisit.push(children);
-                }
-            }
-            //remove the root
-            currentTrace.removeLast();
-        }
-		
-		return res;
-	}
-	
-	private LinkedList<Point> getChildren(Point point, Point parent){
-		LinkedList<Point> children = new LinkedList<>(get(point));
+	/**
+	 * Retourne les fils d'un point du graphe
+	 * @param point Point considere
+	 * @param parent Parent du point considere
+	 * @return La liste des points voisins du point considere prive de son parent
+	 */
+	private ArrayList<Point> getChildren(Point point, Point parent){
+		ArrayList<Point> children = new ArrayList<>(get(point));
 		children.remove(parent);
 		return children;
 	}
 
 
+	/**
+	 * Calcule le degres d'un point
+	 * @param p Point considere
+	 * @return le degre du point considere dans le graphe
+	 */
 	public int degre(Point p){
 		return get(p).size();
 	}
 
+	/**
+	 * Compte le nombre d'exception dans une liste de point
+	 * @param points Liste de point consideres dans le graphe
+	 * @return Le nombre de points ayant un degre strictement superieur a 2 dans la liste de point
+	 */
 	public int countException(List<Point> points){
 		int count=0;
 		for(Point p:points){
@@ -195,23 +116,9 @@ public class Graph extends HashMap<Point, ArrayList<Point>>{
 		return count;
 	}
 
-	public boolean possibleToHaveSemiDisjointCycle(){
-		LinkedList<Point> allowedPoints = new LinkedList<>();
-
-		for(Point p : keySet()){
-			if(degre(p) == 2){
-				for(Point alreadyAdded : allowedPoints){
-					if(get(p).contains(alreadyAdded)){
-						return true;
-					}
-				}
-				allowedPoints.add(p);
-			}
-		}
-
-		return false;
-	}
-
+	/**
+	 * Supprime tout les points du graphe ayant un degre strictement inferieure a 2
+	 */
 	public void cleanup(){
 		boolean wasCleanup;
 
@@ -219,15 +126,33 @@ public class Graph extends HashMap<Point, ArrayList<Point>>{
 			wasCleanup=false;
 			Set<Point> keys=keySet();
 			Set<Point> keysToDelete=new HashSet<Point>();
-			for(Point k:keys){//int i=0;i<keys.size();i++
+			for(Point k:keys){
 				if(degre(k)<2){
-					keysToDelete.add(k);//i--;
+					keysToDelete.add(k);
 				}
 			}
 			for(Point k:keysToDelete){
 				wasCleanup=delect(k);
 			}
-			
+
 		}while(wasCleanup);
+	}
+
+	/**
+	 * Calcule le chemin a effectuer d'un point a un autre celon une traces
+	 * @param traces HashMap representant une trace ou a partir d'un point on obtient sont predecesseur  
+	 * @param from Point de depart dans traces
+	 * @param to Point d'arrive dans traces
+	 * @return La liste de points constituant le chemin de from à to dans traces
+	 */
+	public ArrayList<Point> backUp(HashMap<Point, Point> traces,Point from ,Point to){
+		ArrayList<Point> res=new ArrayList<>();
+		while(!from.equals(to)){
+			res.add(from);
+			from=traces.get(from);
+		}
+
+		return res;
+
 	}
 }
